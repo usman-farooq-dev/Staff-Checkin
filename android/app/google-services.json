@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "193687268938",
+    "project_id": "staff-checkin-b4972",
+    "storage_bucket": "staff-checkin-b4972.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193687268938:android:42b1a4e298a72704c580b3",
+        "android_client_info": {
+          "package_name": "com.staff.checkin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgE8QOr9VZ9R2Hf8-Sgj2fzKSe4ZcsJRA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193687268938:android:5bbb78baa8f01869c580b3",
+        "android_client_info": {
+          "package_name": "com.staff.checkin.staff_checkin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgE8QOr9VZ9R2Hf8-Sgj2fzKSe4ZcsJRA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

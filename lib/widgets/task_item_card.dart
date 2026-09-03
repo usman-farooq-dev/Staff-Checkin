@@ -1,0 +1,223 @@
+import 'package:flutter/material.dart';
+import '../core/constants/app_assets.dart';
+import '../core/constants/app_colors.dart';
+import '../core/constants/app_styles.dart';
+import '../models/check_task_model.dart';
+import 'custom_button.dart';
+import 'media_preview_widget.dart';
+
+class TaskItemCard extends StatelessWidget {
+  final CheckTaskModel task;
+  final VoidCallback onCapture;
+
+  const TaskItemCard({
+    super.key,
+    required this.task,
+    required this.onCapture,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasEvidence = task.isCompleted &&
+        task.capturedFilePath != null &&
+        task.capturedFilePath!.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBgWarm,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: task.isCompleted
+              ? const Color(0xFFC6E7D2)
+              : AppColors.cardBorder,
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Circle Number / Check Badge
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: task.isCompleted
+                      ? const Color(0xFFEAF8EF)
+                      : const Color(0xFFF4EFE3),
+                  border: Border.all(
+                    color: task.isCompleted
+                        ? const Color(0xFFC6E7D2)
+                        : AppColors.cardBorder,
+                    width: 1.2,
+                  ),
+                ),
+                child: Center(
+                  child: task.isCompleted
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 16,
+                          color: Color(0xFF15803D),
+                        )
+                      : Text(
+                          '${task.stepNumber}',
+                          style: AppStyles.caption.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Title and Description
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            task.title,
+                            style: AppStyles.bodyLarge.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15.5,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (task.isRequired)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEE2E2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'REQUIRED',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFDC2626),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      task.description,
+                      style: AppStyles.bodyMedium.copyWith(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Requirement label
+          Padding(
+            padding: const EdgeInsets.only(left: 40),
+            child: Row(
+              children: [
+                if (task.requirementType == RequirementType.video)
+                  const Icon(
+                    Icons.videocam_outlined,
+                    size: 15,
+                    color: AppColors.textSecondary,
+                  )
+                else
+                  Image.asset(
+                    AppAssets.icCameraGray,
+                    width: 15,
+                    height: 15,
+                    fit: BoxFit.contain,
+                  ),
+                const SizedBox(width: 6),
+                Text(
+                  task.requirementLabel,
+                  style: AppStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Action Buttons: If evidence captured, show Preview + Retake
+          if (hasEvidence)
+            Row(
+              children: [
+                // Preview Evidence Button (Dark Green)
+                Expanded(
+                  flex: 3,
+                  child: CustomButton(
+                    text: task.isVideoFile ? 'PLAY VIDEO' : 'VIEW PHOTO',
+                    variant: ButtonVariant.dark,
+                    icon: Icon(
+                      task.isVideoFile
+                          ? Icons.play_circle_fill_rounded
+                          : Icons.visibility_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                    height: 44,
+                    onPressed: () {
+                      MediaPreviewDialog.show(
+                        context,
+                        mediaSource: task.capturedFilePath!,
+                        title: task.title,
+                        isVideo: task.isVideoFile,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Retake Button (Outlined)
+                Expanded(
+                  flex: 2,
+                  child: CustomButton(
+                    text: 'RETAKE',
+                    variant: ButtonVariant.outline,
+                    height: 44,
+                    onPressed: onCapture,
+                  ),
+                ),
+              ],
+            )
+          else
+            // Capture Button
+            CustomButton(
+              text: 'CAPTURE',
+              variant: ButtonVariant.primary,
+              icon: Image.asset(
+                AppAssets.icCameraBrown,
+                width: 17,
+                height: 17,
+                color: AppColors.buttonDarkText,
+                fit: BoxFit.contain,
+              ),
+              height: 44,
+              onPressed: onCapture,
+            ),
+        ],
+      ),
+    );
+  }
+}
