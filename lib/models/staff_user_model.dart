@@ -21,6 +21,7 @@ class StaffUserModel {
   final PermissionState locationPermission;
   final int pendingUploads;
   final String kioskMode;
+  final bool isKioskMode;
   final String uploadDestination;
   final String appVersion;
 
@@ -42,6 +43,7 @@ class StaffUserModel {
     this.locationPermission = PermissionState.blocked,
     this.pendingUploads = 0,
     this.kioskMode = 'Managed by store admin',
+    this.isKioskMode = true,
     this.uploadDestination = 'Company Cloud Storage',
     this.appVersion = '1.4.0 (85)',
   });
@@ -54,6 +56,38 @@ class StaffUserModel {
   ) {
     final data = doc.data() ?? {};
     return StaffUserModel.fromMap(data, doc.id);
+  }
+
+  static bool _parseKioskMode(Map<String, dynamic> data) {
+    for (final entry in data.entries) {
+      final cleanKey = entry.key.trim().toLowerCase().replaceAll('_', '');
+      if (cleanKey == 'iskioskmode' ||
+          cleanKey == 'kioskmode' ||
+          cleanKey == 'iskiosk') {
+        final val = entry.value;
+        if (val is bool) return val;
+        if (val is num) return val != 0;
+        if (val is String) {
+          final lower = val.trim().toLowerCase();
+          if (lower == 'false' ||
+              lower == '0' ||
+              lower == 'disabled' ||
+              lower == 'off' ||
+              lower == 'no') {
+            return false;
+          }
+          if (lower == 'true' ||
+              lower == '1' ||
+              lower == 'enabled' ||
+              lower == 'on' ||
+              lower == 'yes') {
+            return true;
+          }
+        }
+      }
+    }
+    // Default is true if missing or null in DB
+    return true;
   }
 
   factory StaffUserModel.fromMap(Map<String, dynamic> data, [String id = '']) {
@@ -72,6 +106,7 @@ class StaffUserModel {
       createdAt: data['createdAt'],
       pendingUploads: (data['pendingUploads'] as num?)?.toInt() ?? 0,
       kioskMode: data['kioskMode'] as String? ?? 'Managed by store admin',
+      isKioskMode: _parseKioskMode(data),
       uploadDestination: data['uploadDestination'] as String? ?? 'Company Cloud Storage',
       appVersion: data['appVersion'] as String? ?? '1.4.0 (85)',
     );
@@ -89,6 +124,7 @@ class StaffUserModel {
       'imageUrl': imageUrl,
       'pinCode': pinCode,
       'isActive': isActive,
+      'isKioskMode': isKioskMode,
       'createdAt': createdAt,
     };
   }
@@ -111,6 +147,7 @@ class StaffUserModel {
     PermissionState? locationPermission,
     int? pendingUploads,
     String? kioskMode,
+    bool? isKioskMode,
     String? uploadDestination,
     String? appVersion,
   }) {
@@ -132,6 +169,7 @@ class StaffUserModel {
       locationPermission: locationPermission ?? this.locationPermission,
       pendingUploads: pendingUploads ?? this.pendingUploads,
       kioskMode: kioskMode ?? this.kioskMode,
+      isKioskMode: isKioskMode ?? this.isKioskMode,
       uploadDestination: uploadDestination ?? this.uploadDestination,
       appVersion: appVersion ?? this.appVersion,
     );

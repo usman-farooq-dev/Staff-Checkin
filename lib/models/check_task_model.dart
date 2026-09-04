@@ -8,6 +8,7 @@ class CheckTaskModel {
   final bool isRequired;
   final bool isCompleted;
   final String? capturedFilePath;
+  final String imageUrl;
 
   const CheckTaskModel({
     required this.stepNumber,
@@ -17,6 +18,7 @@ class CheckTaskModel {
     this.isRequired = false,
     this.isCompleted = false,
     this.capturedFilePath,
+    this.imageUrl = '',
   });
 
   String get requirementLabel {
@@ -64,6 +66,7 @@ class CheckTaskModel {
       isRequired: isRequired,
       isCompleted: map['isCompleted'] as bool? ?? false,
       capturedFilePath: map['capturedFilePath'] as String?,
+      imageUrl: map['imageUrl'] as String? ?? map['image'] as String? ?? '',
     );
   }
 
@@ -87,6 +90,7 @@ class CheckTaskModel {
       'isRequired': isRequired,
       'isCompleted': isCompleted,
       if (capturedFilePath != null) 'capturedFilePath': capturedFilePath,
+      if (imageUrl.isNotEmpty) 'imageUrl': imageUrl,
     };
   }
 
@@ -98,6 +102,7 @@ class CheckTaskModel {
     bool? isRequired,
     bool? isCompleted,
     String? capturedFilePath,
+    String? imageUrl,
   }) {
     return CheckTaskModel(
       stepNumber: stepNumber ?? this.stepNumber,
@@ -107,6 +112,7 @@ class CheckTaskModel {
       isRequired: isRequired ?? this.isRequired,
       isCompleted: isCompleted ?? this.isCompleted,
       capturedFilePath: capturedFilePath ?? this.capturedFilePath,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 }

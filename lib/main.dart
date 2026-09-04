@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_strings.dart';
 import 'core/routes/app_routes.dart';
+import 'core/services/kiosk_service.dart';
+import 'core/services/reminder_sound_service.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'models/check_task_model.dart';
@@ -15,6 +17,7 @@ import 'views/camera/camera_capture_screen.dart';
 import 'views/checklist/hygiene_checklist_screen.dart';
 import 'views/history/history_detail_screen.dart';
 import 'views/main_nav_wrapper.dart';
+import 'views/profile/reminder_tune_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +29,12 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase initialization notice: $e');
   }
+
+  // Initialize reminder sound service
+  await ReminderSoundService.instance.init();
+
+  // Initialize device Kiosk mode (Lock Task Mode / Immersive Screen Lock)
+  await KioskService.instance.init();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -78,6 +87,10 @@ class StaffCheckInApp extends StatelessWidget {
             final task = settings.arguments as CheckTaskModel?;
             return MaterialPageRoute(
               builder: (_) => CameraCaptureScreen(task: task),
+            );
+          case AppRoutes.reminderTune:
+            return MaterialPageRoute(
+              builder: (_) => const ReminderTuneScreen(),
             );
           default:
             return MaterialPageRoute(

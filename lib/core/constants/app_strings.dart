@@ -3,7 +3,7 @@ class AppStrings {
 
   // App & Auth
   static const String appName = 'Staff Check-In';
-  static const String enterPin = 'Enter Your PIN';
+  static const String enterPin = 'Enter your PIN';
   static const String pinSubtitle = 'Your PIN links compliance evidence to you.';
   static const String continueBtn = 'CONTINUE';
   static const String digitsEntered = 'digits entered';

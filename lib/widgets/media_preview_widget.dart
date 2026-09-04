@@ -136,13 +136,21 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
             ),
 
             // Media Content Container
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
-              child: AspectRatio(
-                aspectRatio: 9 / 12,
-                child: widget.isVideo
-                    ? _buildVideoPlayer()
-                    : _buildImageViewer(),
+            Flexible(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(18)),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+                  ),
+                  child: widget.isVideo
+                      ? AspectRatio(
+                          aspectRatio: 9 / 12,
+                          child: _buildVideoPlayer(),
+                        )
+                      : _buildImageViewer(),
+                ),
               ),
             ),
           ],
@@ -243,7 +251,7 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
     if (_isNetwork) {
       return Image.network(
         widget.mediaSource,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return const Center(
@@ -262,12 +270,26 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
           );
         },
       );
+    } else if (widget.mediaSource.startsWith('assets/')) {
+      return Image.asset(
+        widget.mediaSource,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(
+            child: Icon(
+              Icons.image_not_supported_outlined,
+              color: Colors.white54,
+              size: 48,
+            ),
+          );
+        },
+      );
     } else {
       final file = File(widget.mediaSource);
       if (file.existsSync()) {
         return Image.file(
           file,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
         );
       }
       return const Center(

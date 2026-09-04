@@ -29,8 +29,9 @@ class HistoryService {
   }
 
   String _formatTime(DateTime dt) {
-    final hour = dt.hour;
-    final minute = dt.minute.toString().padLeft(2, '0');
+    final utc = dt.toUtc();
+    final hour = utc.hour;
+    final minute = utc.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour == 0
         ? 12
@@ -41,13 +42,15 @@ class HistoryService {
   }
 
   String _formatDateHeader(DateTime dt, DateTime now) {
-    if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+    final dtUtc = dt.toUtc();
+    final nowUtc = now.toUtc();
+    if (dtUtc.year == nowUtc.year && dtUtc.month == nowUtc.month && dtUtc.day == nowUtc.day) {
       return 'Today';
     }
-    final yesterday = now.subtract(const Duration(days: 1));
-    if (dt.year == yesterday.year &&
-        dt.month == yesterday.month &&
-        dt.day == yesterday.day) {
+    final yesterday = nowUtc.subtract(const Duration(days: 1));
+    if (dtUtc.year == yesterday.year &&
+        dtUtc.month == yesterday.month &&
+        dtUtc.day == yesterday.day) {
       return 'Yesterday';
     }
 
@@ -65,7 +68,7 @@ class HistoryService {
       'Nov',
       'Dec'
     ];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+    return '${months[dtUtc.month - 1]} ${dtUtc.day}, ${dtUtc.year}';
   }
 
   /// Stream all history records grouped by Date for the active store
@@ -76,15 +79,15 @@ class HistoryService {
         .collection('Scheduled_CheckIn')
         .snapshots()
         .map((snapshot) {
-      final now = DateTime.now();
-      final todayStart = DateTime(now.year, now.month, now.day);
+      final now = DateTime.now().toUtc();
+      final todayStart = DateTime.utc(now.year, now.month, now.day);
       final List<HistoryRecordModel> validRecords = [];
 
       for (final doc in snapshot.docs) {
         final check = ScheduledCheckInModel.fromFirestore(doc);
-        final checkDate = check.scheduledAt;
+        final checkDate = check.scheduledAt.toUtc();
         final checkDayStart =
-            DateTime(checkDate.year, checkDate.month, checkDate.day);
+            DateTime.utc(checkDate.year, checkDate.month, checkDate.day);
 
         final bool isToday = checkDayStart.isAtSameMomentAs(todayStart);
         final bool isPast = checkDayStart.isBefore(todayStart);

@@ -11,4 +11,5 @@ class AppRoutes {
   static const String historyDetail = '/history-detail';
   static const String profile = '/profile';
   static const String cameraCapture = '/camera-capture';
+  static const String reminderTune = '/reminder-tune';
 }

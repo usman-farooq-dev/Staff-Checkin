@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_assets.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
 
 class PinKeypadWidget extends StatelessWidget {
   final Function(String) onDigitPressed;
   final VoidCallback onDeletePressed;
+  final double keyHeight;
 
   const PinKeypadWidget({
     super.key,
     required this.onDigitPressed,
     required this.onDeletePressed,
+    this.keyHeight = 60,
   });
 
   @override
@@ -31,25 +32,31 @@ class PinKeypadWidget extends StatelessWidget {
 
   Widget _buildRow(List<String> digits) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: digits.map((digit) => _buildKey(digit)).toList(),
+      children: [
+        Expanded(child: _buildKey(digits[0])),
+        const SizedBox(width: 12),
+        Expanded(child: _buildKey(digits[1])),
+        const SizedBox(width: 12),
+        Expanded(child: _buildKey(digits[2])),
+      ],
     );
   }
 
   Widget _buildBottomRow() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const SizedBox(width: 88, height: 60), // Empty spacer on bottom left
-        _buildKey('0'),
-        _buildActionKey(
-          onTap: onDeletePressed,
-          child: Image.asset(
-            AppAssets.icCross,
-            width: 24,
-            height: 24,
-            color: AppColors.textPrimary,
-            fit: BoxFit.contain,
+        const Expanded(child: SizedBox()), // Empty spacer on bottom left
+        const SizedBox(width: 12),
+        Expanded(child: _buildKey('0')),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildActionKey(
+            onTap: onDeletePressed,
+            child: const Icon(
+              Icons.backspace_outlined,
+              size: 24,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ],
@@ -58,8 +65,7 @@ class PinKeypadWidget extends StatelessWidget {
 
   Widget _buildKey(String digit) {
     return SizedBox(
-      width: 88,
-      height: 60,
+      height: keyHeight,
       child: Material(
         color: AppColors.cardBgWarm,
         borderRadius: BorderRadius.circular(10),
@@ -95,8 +101,7 @@ class PinKeypadWidget extends StatelessWidget {
     required Widget child,
   }) {
     return SizedBox(
-      width: 88,
-      height: 60,
+      height: keyHeight,
       child: Material(
         color: AppColors.cardBgWarm,
         borderRadius: BorderRadius.circular(10),

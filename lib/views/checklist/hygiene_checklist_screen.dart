@@ -203,7 +203,7 @@ class _HygieneChecklistScreenState extends State<HygieneChecklistScreen> {
           duration: const Duration(seconds: 3),
         ),
       );
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     } else {
       StaffAlertDialog.showError(
         context,

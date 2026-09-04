@@ -149,11 +149,97 @@ class NoPendingCheckCard extends StatelessWidget {
   }
 }
 
+class OverdueAlertBanner extends StatelessWidget {
+  final int overdueCount;
+  final String title;
+  final VoidCallback onStartNow;
+
+  const OverdueAlertBanner({
+    super.key,
+    required this.overdueCount,
+    required this.title,
+    required this.onStartNow,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFBA3A2A),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // Triangular warning icon
+          Image.asset(
+            AppAssets.icWarning,
+            width: 28,
+            height: 28,
+            color: Colors.white,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 10),
+          // Title & Subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  overdueCount == 1 ? '1 check overdue' : '$overdueCount checks overdue',
+                  style: AppStyles.bodyLarge.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$title — escalated to your manager.',
+                  style: AppStyles.caption.copyWith(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // START NOW Button
+          Material(
+            color: const Color(0xFF1B2420),
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              onTap: onStartNow,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Text(
+                  'START NOW',
+                  style: AppStyles.buttonText.copyWith(
+                    color: const Color(0xFFDC8B32),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class UpcomingTaskCard extends StatelessWidget {
   final String time;
   final String title;
   final String taskInfo;
   final bool isOverdue;
+  final bool isMissed;
   final VoidCallback onStartCheck;
 
   const UpcomingTaskCard({
@@ -162,6 +248,7 @@ class UpcomingTaskCard extends StatelessWidget {
     this.title = 'Hygiene Check',
     this.taskInfo = '5 tasks • Overdue by 1 hr 26 min',
     this.isOverdue = true,
+    this.isMissed = false,
     required this.onStartCheck,
   });
 
@@ -203,21 +290,32 @@ class UpcomingTaskCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          // Overdue / Upcoming Pill Badge
+          // Overdue / Missed / Upcoming Pill Badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: isOverdue ? const Color(0xFFFDE8E4) : const Color(0xFFEBF5FF),
+              color: (isMissed || isOverdue)
+                  ? const Color(0xFFFDE8E4)
+                  : const Color(0xFFEBF5FF),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isOverdue ? const Color(0xFFF7C6BC) : const Color(0xFFB9E6FE),
+                color: (isMissed || isOverdue)
+                    ? const Color(0xFFF7C6BC)
+                    : const Color(0xFFB9E6FE),
                 width: 1,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (isOverdue)
+                if (isMissed)
+                  Image.asset(
+                    AppAssets.icMissed,
+                    width: 14,
+                    height: 14,
+                    fit: BoxFit.contain,
+                  )
+                else if (isOverdue)
                   Image.asset(
                     AppAssets.icWarning,
                     width: 14,
@@ -232,9 +330,15 @@ class UpcomingTaskCard extends StatelessWidget {
                   ),
                 const SizedBox(width: 6),
                 Text(
-                  isOverdue ? 'Overdue' : 'Upcoming',
+                  isMissed
+                      ? 'Missed'
+                      : isOverdue
+                          ? 'Overdue'
+                          : 'Upcoming',
                   style: AppStyles.caption.copyWith(
-                    color: isOverdue ? const Color(0xFFB9381E) : const Color(0xFF026AA2),
+                    color: (isMissed || isOverdue)
+                        ? const Color(0xFFB9381E)
+                        : const Color(0xFF026AA2),
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
@@ -322,3 +426,109 @@ class NotificationWarningCard extends StatelessWidget {
     );
   }
 }
+
+class TrainingResourcesCard extends StatelessWidget {
+  final VoidCallback onOpenTraining;
+  final String title;
+  final String description;
+  final String buttonText;
+
+  const TrainingResourcesCard({
+    super.key,
+    required this.onOpenTraining,
+    this.title = 'Staff Training & Resources',
+    this.description = 'Access operational guidelines, hygiene standards, and training links.',
+    this.buttonText = 'ACCESS TRAINING',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBgWarm,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryOrangeLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  color: AppColors.primaryOrange,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    fontSize: 14.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: AppStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 42,
+            child: Material(
+              color: const Color(0xFF1E322B),
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                onTap: onOpenTraining,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        buttonText,
+                        style: AppStyles.buttonText.copyWith(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.open_in_new_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

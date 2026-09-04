@@ -4,6 +4,7 @@ import '../../core/constants/app_assets.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_styles.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/reminder_sound_service.dart';
 import '../../core/services/scheduled_checkin_service.dart';
 import '../../models/scheduled_checkin_model.dart';
 import '../../widgets/custom_button.dart';
@@ -36,66 +37,155 @@ class ComplianceAlertScreen extends StatelessWidget {
     final displayTitle = check?.title ?? 'Hygiene Check';
     final displayScheduled = check?.formattedTime ?? '6:57 PM';
     final displayDueInfo = check?.overdueOrDueInfo ?? 'Due 7 minutes';
+    final bool isOverdue = check?.isOverdue ?? true;
     final bool canSnooze = check != null
         ? check.canSnoozeForStore(storeId ?? '')
         : true;
 
-    return showDialog(
-      context: context,
-      barrierDismissible: canSnooze,
-      builder: (ctx) => Dialog.fullscreen(
-        child: ComplianceAlertScreen(
+    final mediaSize = MediaQuery.sizeOf(context);
+    final isTablet = mediaSize.shortestSide >= 600 || mediaSize.width >= 600;
+
+    // Start playing reminder tune
+    ReminderSoundService.instance.playAlertTune();
+
+    Future<void> handleStartCheck(BuildContext ctx) async {
+      ReminderSoundService.instance.stop();
+      if (!ctx.mounted) return;
+      Navigator.of(ctx).pop();
+      if (!context.mounted) return;
+      final completed = await Navigator.of(context).pushNamed(
+        AppRoutes.checklist,
+        arguments: check,
+      );
+
+      // If user came back without completing / uploading, re-open alert dialog
+      if (completed != true && context.mounted) {
+        ComplianceAlertScreen.show(
+          context,
           check: check,
-          title: displayTitle,
-          scheduledTime: displayScheduled,
-          dueInfo: displayDueInfo,
-          canSnooze: canSnooze,
-          onStartCheck: () {
-            Navigator.of(ctx).pop();
-            Navigator.of(context).pushNamed(
-              AppRoutes.checklist,
-              arguments: check,
-            );
-          },
-          onRemindLater: canSnooze
-              ? () async {
-                  Navigator.of(ctx).pop();
-                  if (check != null) {
-                    await ScheduledCheckInService.instance
-                        .snoozeCheckFor15Minutes(
-                      checkId: check.id,
-                      storeId: storeId,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(
-                                Icons.snooze_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text('Reminder snoozed for 15 minutes (Final).'),
-                            ],
-                          ),
-                          backgroundColor: AppColors.darkCard,
-                          duration: Duration(seconds: 3),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }
-                }
-              : null,
+          storeId: storeId,
+        );
+      }
+    }
+
+    Future<void> handleRemindLater(BuildContext ctx) async {
+      ReminderSoundService.instance.stop();
+      Navigator.of(ctx).pop();
+      if (check != null) {
+        await ScheduledCheckInService.instance.snoozeCheckFor15Minutes(
+          checkId: check.id,
+          storeId: storeId,
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    Icons.snooze_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text('Reminder snoozed for 15 minutes (Final).'),
+                ],
+              ),
+              backgroundColor: AppColors.darkCard,
+              duration: Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+
+    Future<void> dialogFuture;
+
+    if (isTablet) {
+      dialogFuture = showDialog(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withValues(alpha: 0.65),
+        builder: (ctx) => PopScope(
+          canPop: false,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+            child: TabletComplianceAlertDialog(
+              check: check,
+              title: displayTitle,
+              scheduledTime: displayScheduled,
+              isOverdue: isOverdue,
+              canSnooze: canSnooze,
+              onStartCheck: () => handleStartCheck(ctx),
+              onRemindLater: canSnooze ? () => handleRemindLater(ctx) : null,
+            ),
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      // Mobile: Fullscreen alert dialog (non-cancelable until check-in started)
+      dialogFuture = showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => PopScope(
+          canPop: false,
+          child: Dialog.fullscreen(
+            child: ComplianceAlertScreen(
+              check: check,
+              title: displayTitle,
+              scheduledTime: displayScheduled,
+              dueInfo: displayDueInfo,
+              canSnooze: canSnooze,
+              onStartCheck: () => handleStartCheck(ctx),
+              onRemindLater: canSnooze ? () => handleRemindLater(ctx) : null,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return dialogFuture.whenComplete(() {
+      ReminderSoundService.instance.stop();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final mediaSize = MediaQuery.sizeOf(context);
+    final isTablet = mediaSize.shortestSide >= 600 || mediaSize.width >= 600;
+
+    if (isTablet) {
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+        child: PopScope(
+          canPop: false,
+          child: Scaffold(
+            backgroundColor: Colors.black.withValues(alpha: 0.65),
+            body: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+                child: TabletComplianceAlertDialog(
+                  check: check,
+                  title: title,
+                  scheduledTime: scheduledTime,
+                  isOverdue: check?.isOverdue ?? true,
+                  canSnooze: canSnooze,
+                  onStartCheck: onStartCheck,
+                  onRemindLater: onRemindLater,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -103,7 +193,7 @@ class ComplianceAlertScreen extends StatelessWidget {
         statusBarBrightness: Brightness.dark,
       ),
       child: PopScope(
-        canPop: canSnooze,
+        canPop: false,
         child: Scaffold(
           backgroundColor: AppColors.darkAlertBg,
           body: SafeArea(
@@ -336,6 +426,238 @@ class ComplianceAlertScreen extends StatelessWidget {
                 );
               },
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tablet-specific Compliance Alert Modal Dialog matching Mockup 03
+class TabletComplianceAlertDialog extends StatelessWidget {
+  final ScheduledCheckInModel? check;
+  final String title;
+  final String scheduledTime;
+  final bool isOverdue;
+  final bool canSnooze;
+  final VoidCallback? onStartCheck;
+  final VoidCallback? onRemindLater;
+
+  const TabletComplianceAlertDialog({
+    super.key,
+    this.check,
+    this.title = 'Hygiene Check',
+    this.scheduledTime = '4:37 PM',
+    this.isOverdue = true,
+    this.canSnooze = true,
+    this.onStartCheck,
+    this.onRemindLater,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 520,
+        ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(36, 40, 36, 32),
+          decoration: BoxDecoration(
+            color: const Color(0xFF162520),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.08),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 36,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Warning Icon Box
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF24362E),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    width: 1,
+                  ),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    AppAssets.icWarning,
+                    width: 32,
+                    height: 32,
+                    color: Colors.white,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Subtitle
+              Text(
+                isOverdue
+                    ? 'Compliance Check Overdue'
+                    : 'Compliance Check Due',
+                style: AppStyles.caption.copyWith(
+                  color: const Color(0xFF98ACA2),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+
+              // Large Title
+              Text(
+                title,
+                style: AppStyles.heading1.copyWith(
+                  color: Colors.white,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                  height: 1.15,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 30),
+
+              // Scheduled Time & Status row
+              Row(
+                children: [
+                  // Scheduled time column
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Scheduled time',
+                          style: AppStyles.caption.copyWith(
+                            color: const Color(0xFF98ACA2),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          scheduledTime,
+                          style: AppStyles.heading2.copyWith(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Status column
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Status',
+                          style: AppStyles.caption.copyWith(
+                            color: const Color(0xFF98ACA2),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          isOverdue ? 'OVERDUE' : 'PENDING',
+                          style: AppStyles.heading2.copyWith(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Description
+              Text(
+                isOverdue
+                    ? 'This check is now overdue and has been reported to your manager. Please complete it now.'
+                    : 'Please complete the required compliance tasks for this check.',
+                style: AppStyles.bodyMedium.copyWith(
+                  color: const Color(0xFFB0C4B8),
+                  fontSize: 14,
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+
+              // Orange START CHECK Button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: onStartCheck ??
+                      () {
+                        Navigator.of(context).pushReplacementNamed(
+                          AppRoutes.checklist,
+                          arguments: check,
+                        );
+                      },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryOrange,
+                    foregroundColor: AppColors.buttonDarkText,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'START CHECK',
+                    style: AppStyles.buttonText.copyWith(
+                      color: AppColors.buttonDarkText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Remind Me Later Button
+              if (canSnooze)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: TextButton(
+                    onPressed: onRemindLater ??
+                        () {
+                          Navigator.of(context).pop();
+                        },
+                    child: Text(
+                      'REMIND ME AGAIN IN 15 MINUTES',
+                      style: AppStyles.caption.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

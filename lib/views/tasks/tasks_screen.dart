@@ -21,125 +21,135 @@ class TasksScreen extends StatelessWidget {
         final storeId = currentStaff?.storeId ?? '';
 
         return SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Header Bar
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tasks',
-                        style: AppStyles.heading1.copyWith(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isTablet = constraints.maxWidth >= 600 ||
+                  MediaQuery.sizeOf(context).shortestSide >= 600;
+              final horizontalPadding = isTablet ? 24.0 : 16.0;
+
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Header Bar
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          horizontalPadding, 16, horizontalPadding, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tasks',
+                            style: AppStyles.heading1.copyWith(
+                              fontSize: isTablet ? 28 : 26,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Your scheduled compliance checks for today.',
+                            style: AppStyles.bodySmall.copyWith(
+                              color: const Color(0xFF5B6471),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Your scheduled compliance checks for today.',
-                        style: AppStyles.bodySmall.copyWith(
-                          color: const Color(0xFF5B6471),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
 
-                // Top Horizontal Divider
-                const Divider(
-                  color: AppColors.cardBorderSubtle,
-                  thickness: 1.2,
-                  height: 1.2,
-                ),
-                const SizedBox(height: 12),
+                    // Top Horizontal Divider
+                    const Divider(
+                      color: AppColors.cardBorderSubtle,
+                      thickness: 1.2,
+                      height: 1.2,
+                    ),
+                    const SizedBox(height: 12),
 
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Section: Upcoming / Overdue
-                      Text(
-                        'Upcoming',
-                        style: AppStyles.caption.copyWith(
-                          color: const Color(0xFF475569),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Section: Upcoming / Overdue / Missed
+                          Text(
+                            'Upcoming',
+                            style: AppStyles.caption.copyWith(
+                              color: const Color(0xFF475569),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
 
-                      StreamBuilder<List<ScheduledCheckInModel>>(
-                        stream: ScheduledCheckInService.instance
-                            .streamTodaysPendingChecks(storeId: storeId),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                                  ConnectionState.waiting &&
-                              !snapshot.hasData) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 20),
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  color: AppColors.primaryOrange,
-                                ),
-                              ),
-                            );
-                          }
-
-                          final pendingChecks = snapshot.data ?? [];
-
-                          if (pendingChecks.isEmpty) {
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: AppColors.cardBgWarm,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: AppColors.cardBorder,
-                                  width: 1.2,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'No pending checks for today.',
-                                  style: AppStyles.bodyMedium.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w600,
+                          StreamBuilder<List<ScheduledCheckInModel>>(
+                            stream: ScheduledCheckInService.instance
+                                .streamTodaysPendingChecks(storeId: storeId),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                      ConnectionState.waiting &&
+                                  !snapshot.hasData) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 20),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.primaryOrange,
+                                    ),
                                   ),
-                                ),
-                              ),
-                            );
-                          }
+                                );
+                              }
 
-                          return Column(
-                            children: pendingChecks.map((check) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: UpcomingTaskCard(
-                                  time: check.formattedTime,
-                                  title: check.title,
-                                  taskInfo: check.taskInfoSubtitle,
-                                  isOverdue: check.isOverdue,
-                                  onStartCheck: () {
-                                    Navigator.of(context).pushNamed(
-                                      AppRoutes.checklist,
-                                      arguments: check,
-                                    );
-                                  },
-                                ),
+                              final pendingChecks = snapshot.data ?? [];
+
+                              if (pendingChecks.isEmpty) {
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.cardBgWarm,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: AppColors.cardBorder,
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'No pending checks for today.',
+                                      style: AppStyles.bodyMedium.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              return Column(
+                                children: pendingChecks.map((check) {
+                                  final isMissed = check.isMissedForStore(storeId);
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: UpcomingTaskCard(
+                                      time: check.formattedTime,
+                                      title: check.title,
+                                      taskInfo: check.taskInfoSubtitle,
+                                      isOverdue: check.isOverdue,
+                                      isMissed: isMissed,
+                                      onStartCheck: () {
+                                        Navigator.of(context).pushNamed(
+                                          AppRoutes.checklist,
+                                          arguments: check,
+                                        );
+                                      },
+                                    ),
+                                  );
+                                }).toList(),
                               );
-                            }).toList(),
-                          );
-                        },
-                      ),
+                            },
+                          ),
 
                       const SizedBox(height: 12),
 
@@ -219,11 +229,13 @@ class TasksScreen extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
-  }
+  },
+);
+}
 
   Widget _buildCompletedItem({
     required String time,

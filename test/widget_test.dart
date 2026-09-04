@@ -14,8 +14,8 @@ void main() {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const StaffCheckInApp());
 
-    // Verify that PIN screen loads with Enter Your PIN title
-    expect(find.text('Enter Your PIN'), findsOneWidget);
+    // Verify that PIN screen loads with Enter your PIN title
+    expect(find.text('Enter your PIN'), findsOneWidget);
     expect(find.text('CONTINUE'), findsOneWidget);
   });
 }

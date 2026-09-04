@@ -27,12 +27,26 @@ class ScheduledCheckInService {
   ScheduledCheckInService._();
   static final ScheduledCheckInService instance = ScheduledCheckInService._();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore? get _firestore {
+    try {
+      return FirebaseFirestore.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static const String _collectionName = 'Scheduled_CheckIn';
 
-  /// Helper to check if two dates are on the same calendar day
+  /// Helper to check if two dates are on the same calendar day (supports both wall-clock and UTC)
   bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    if (a.year == b.year && a.month == b.month && a.day == b.day) {
+      return true;
+    }
+    final aUtc = a.toUtc();
+    final bUtc = b.toUtc();
+    return aUtc.year == bUtc.year &&
+        aUtc.month == bUtc.month &&
+        aUtc.day == bUtc.day;
   }
 
   /// Resolve current storeId from parameter or logged-in staff session
@@ -47,8 +61,10 @@ class ScheduledCheckInService {
   /// Sorted in ASCENDING order by scheduledAt.
   Stream<List<ScheduledCheckInModel>> streamTodaysPendingChecks({String? storeId}) {
     final targetStoreId = _resolveStoreId(storeId);
+    final firestore = _firestore;
+    if (firestore == null) return Stream.value([]);
 
-    return _firestore.collection(_collectionName).snapshots().map((snapshot) {
+    return firestore.collection(_collectionName).snapshots().map((snapshot) {
       return _processAndFilterDocs(snapshot.docs, targetStoreId, filterPending: true);
     });
   }
@@ -56,8 +72,10 @@ class ScheduledCheckInService {
   /// Stream today's completed checks for the active store
   Stream<List<ScheduledCheckInModel>> streamTodaysCompletedChecks({String? storeId}) {
     final targetStoreId = _resolveStoreId(storeId);
+    final firestore = _firestore;
+    if (firestore == null) return Stream.value([]);
 
-    return _firestore.collection(_collectionName).snapshots().map((snapshot) {
+    return firestore.collection(_collectionName).snapshots().map((snapshot) {
       return _processAndFilterDocs(snapshot.docs, targetStoreId, filterPending: false);
     });
   }
@@ -65,8 +83,15 @@ class ScheduledCheckInService {
   /// Stream today's progress statistics (total, completed, percentage) in realtime
   Stream<TodaysProgressModel> streamTodaysProgress({String? storeId}) {
     final targetStoreId = _resolveStoreId(storeId);
+    final firestore = _firestore;
+    if (firestore == null) {
+      return Stream.value(const TodaysProgressModel(
+        totalScheduled: 0,
+        completedScheduled: 0,
+      ));
+    }
 
-    return _firestore.collection(_collectionName).snapshots().map((snapshot) {
+    return firestore.collection(_collectionName).snapshots().map((snapshot) {
       final now = DateTime.now();
       int totalScheduled = 0;
       int completedScheduled = 0;
@@ -75,7 +100,8 @@ class ScheduledCheckInService {
 
       for (final doc in snapshot.docs) {
         final check = ScheduledCheckInModel.fromFirestore(doc);
-        final isToday = _isSameDay(check.scheduledAt, now);
+        final isToday = _isSameDay(check.effectiveScheduledDateTime, now) ||
+            _isSameDay(check.scheduledAt, now);
 
         if (isToday) {
           bool storeMatch = false;
@@ -116,9 +142,11 @@ class ScheduledCheckInService {
   /// Fetch today's pending scheduled check-ins as a Future
   Future<List<ScheduledCheckInModel>> getTodaysPendingChecks({String? storeId}) async {
     final targetStoreId = _resolveStoreId(storeId);
+    final firestore = _firestore;
+    if (firestore == null) return [];
 
     try {
-      final snapshot = await _firestore.collection(_collectionName).get();
+      final snapshot = await firestore.collection(_collectionName).get();
       return _processAndFilterDocs(snapshot.docs, targetStoreId, filterPending: true);
     } catch (e) {
       debugPrint('Error fetching Scheduled_CheckIn: $e');
@@ -151,8 +179,9 @@ class ScheduledCheckInService {
     for (final doc in docs) {
       final check = ScheduledCheckInModel.fromFirestore(doc);
 
-      // 1. Date Check: Match today's date
-      final isToday = _isSameDay(check.scheduledAt, now);
+      // 1. Date Check: Match today's date (wall-clock or UTC)
+      final isToday = _isSameDay(check.effectiveScheduledDateTime, now) ||
+          _isSameDay(check.scheduledAt, now);
 
       // 2. Store Status Check:
       bool storeMatch;
@@ -163,7 +192,7 @@ class ScheduledCheckInService {
           storeMatch = true;
           final currentStoreStatus = check.storeStatus[storeId];
           statusMatch = filterPending
-              ? (currentStoreStatus == 'pending')
+              ? (currentStoreStatus == 'pending' || currentStoreStatus == 'missed')
               : (currentStoreStatus == 'completed');
         } else {
           // If storeStatus map exists but doesn't contain this storeId, skip
@@ -174,7 +203,7 @@ class ScheduledCheckInService {
         // Fallback if no storeId is logged in: check overall status
         storeMatch = true;
         statusMatch = filterPending
-            ? (check.status == 'pending')
+            ? (check.status == 'pending' || check.status == 'missed')
             : (check.status == 'completed');
       }
 
@@ -183,8 +212,9 @@ class ScheduledCheckInService {
       }
     }
 
-    // 3. Ascending sort on scheduledAt:
-    filtered.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    // 3. Ascending sort on effectiveScheduledDateTime:
+    filtered.sort((a, b) =>
+        a.effectiveScheduledDateTime.compareTo(b.effectiveScheduledDateTime));
 
     return filtered;
   }
@@ -195,19 +225,23 @@ class ScheduledCheckInService {
     String? storeId,
   }) async {
     final targetStoreId = _resolveStoreId(storeId);
+    final firestore = _firestore;
+    if (firestore == null) return false;
+
     final snoozeUntil = DateTime.now()
+        .toUtc()
         .add(const Duration(minutes: 15))
         .millisecondsSinceEpoch;
 
     try {
       if (targetStoreId.isNotEmpty) {
-        await _firestore.collection(_collectionName).doc(checkId).update({
+        await firestore.collection(_collectionName).doc(checkId).update({
           'remindAt.$targetStoreId': snoozeUntil,
           'snoozeUntil.$targetStoreId': snoozeUntil,
           'snoozeCount.$targetStoreId': FieldValue.increment(1),
         });
       } else {
-        await _firestore.collection(_collectionName).doc(checkId).update({
+        await firestore.collection(_collectionName).doc(checkId).update({
           'remindAt.default': snoozeUntil,
           'snoozeUntil.default': snoozeUntil,
           'snoozeCount.default': FieldValue.increment(1),
@@ -228,15 +262,17 @@ class ScheduledCheckInService {
     String? storeId,
   }) async {
     final targetStoreId = _resolveStoreId(storeId);
+    final firestore = _firestore;
+    if (firestore == null) return false;
 
     try {
       if (targetStoreId.isNotEmpty) {
         // Update storeStatus.<storeId> to "completed"
-        await _firestore.collection(_collectionName).doc(checkId).update({
+        await firestore.collection(_collectionName).doc(checkId).update({
           'storeStatus.$targetStoreId': 'completed',
         });
       } else {
-        await _firestore.collection(_collectionName).doc(checkId).update({
+        await firestore.collection(_collectionName).doc(checkId).update({
           'status': 'completed',
         });
       }

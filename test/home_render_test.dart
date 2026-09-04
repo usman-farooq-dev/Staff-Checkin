@@ -9,11 +9,13 @@ void main() {
         home: MainNavWrapper(),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Good Evening, Ahmed'), findsOneWidget);
-    expect(find.text('6:57 PM'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'\d{1,2}:\d{2}\s+(AM|PM)')), findsOneWidget);
     expect(find.text("Today's progress"), findsOneWidget);
-    expect(find.text('Notifications disabled'), findsOneWidget);
+    expect(find.text('Staff Training & Resources'), findsOneWidget);
+    expect(find.text('ACCESS TRAINING'), findsOneWidget);
   });
 }

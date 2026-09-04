@@ -3,7 +3,9 @@ import '../../core/constants/app_assets.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_styles.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/kiosk_service.dart';
 import '../../core/services/permission_service.dart';
+import '../../core/services/reminder_sound_service.dart';
 import '../../core/services/staff_auth_service.dart';
 import '../../models/staff_user_model.dart';
 import '../../widgets/custom_button.dart';
@@ -52,6 +54,22 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _handleReviewPermissions() async {
+    final currentStaff = StaffAuthService.instance.currentStaff;
+    if (currentStaff?.isKioskMode ?? true) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Device permissions are managed by store administrator in Kiosk Mode.',
+            ),
+            backgroundColor: AppColors.darkCard,
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
     final updated = await PermissionService.reviewAndRequestAllPermissions();
     if (mounted) {
       setState(() {
@@ -172,6 +190,64 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ],
                         ),
                       ),
+                      if (user.isKioskMode) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFBFDBFE),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDBEAFE),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.lock_rounded,
+                                  color: Color(0xFF1D4ED8),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Kiosk Mode Active',
+                                      style: AppStyles.bodyLarge.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13.5,
+                                        color: const Color(0xFF1E40AF),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Settings and device permissions are managed centrally by the store administrator.',
+                                      style: AppStyles.bodySmall.copyWith(
+                                        fontSize: 12,
+                                        color: const Color(0xFF1E3A8A),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
 
                       // Section: Device access
@@ -268,12 +344,125 @@ class _ProfileScreenState extends State<ProfileScreen>
                       else
                         // REVIEW PERMISSIONS Button
                         CustomButton(
-                          text: 'REVIEW PERMISSIONS',
-                          width: 190,
+                          text: user.isKioskMode
+                              ? 'PERMISSIONS MANAGED BY ADMIN'
+                              : 'REVIEW PERMISSIONS',
+                          width: user.isKioskMode ? 245 : 190,
                           height: 42,
                           borderRadius: 8,
                           onPressed: _handleReviewPermissions,
                         ),
+
+                      const SizedBox(height: 20),
+
+                      // Section: Sound & alerts
+                      Text(
+                        'Sound & alerts',
+                        style: AppStyles.caption.copyWith(
+                          color: const Color(0xFF475569),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      ValueListenableBuilder<String>(
+                        valueListenable:
+                            ReminderSoundService.instance.selectedTuneIdNotifier,
+                        builder: (context, selectedTuneId, _) {
+                          final currentTune =
+                              ReminderSoundService.instance.selectedTune;
+
+                          return Material(
+                            color: AppColors.cardBgWarm,
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              onTap: () {
+                                if (user.isKioskMode) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Sound settings are managed by store administrator in Kiosk Mode.',
+                                      ),
+                                      backgroundColor: AppColors.darkCard,
+                                      duration: Duration(seconds: 2),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  return;
+                                }
+                                Navigator.of(context)
+                                    .pushNamed(AppRoutes.reminderTune);
+                              },
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 15,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: AppColors.cardBorder,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.notifications_active_outlined,
+                                          size: 20,
+                                          color: Color(0xFF475569),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          'Reminder tune',
+                                          style: AppStyles.bodyLarge.copyWith(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          currentTune.title,
+                                          style: AppStyles.bodySmall.copyWith(
+                                            color: const Color(0xFF5B6471),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        if (user.isKioskMode)
+                                          const Icon(
+                                            Icons.lock_rounded,
+                                            size: 15,
+                                            color: Color(0xFF64748B),
+                                          )
+                                        else
+                                          Image.asset(
+                                            AppAssets.icForward,
+                                            width: 13,
+                                            height: 13,
+                                            color: const Color(0xFF64748B),
+                                            fit: BoxFit.contain,
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
 
                       const SizedBox(height: 20),
 
@@ -378,8 +567,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                             _buildDeviceInfoRow(
                               iconAsset: AppAssets.icLock,
                               label: 'Kiosk\nmode',
-                              value: user.kioskMode,
-                              valueColor: const Color(0xFF15803D),
+                              value: user.isKioskMode
+                                  ? 'Active (Locked)'
+                                  : 'Disabled',
+                              valueColor: user.isKioskMode
+                                  ? const Color(0xFF15803D)
+                                  : const Color(0xFFB9381E),
                             ),
                             const Divider(
                               height: 1,
@@ -414,6 +607,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           onTap: () {
+                            KioskService.instance.stopKiosk();
                             StaffAuthService.instance.logout();
                             Navigator.of(context).pushNamedAndRemoveUntil(
                               AppRoutes.pin,
