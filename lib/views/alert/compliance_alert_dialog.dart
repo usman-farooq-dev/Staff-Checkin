@@ -29,11 +29,11 @@ class ComplianceAlertScreen extends StatelessWidget {
     this.onRemindLater,
   });
 
-  static Future<void> show(
+  static Future<String?> show(
     BuildContext context, {
     ScheduledCheckInModel? check,
     String? storeId,
-  }) {
+  }) async {
     final displayTitle = check?.title ?? 'Hygiene Check';
     final displayScheduled = check?.formattedTime ?? '6:57 PM';
     final displayDueInfo = check?.overdueOrDueInfo ?? 'Due 7 minutes';
@@ -48,29 +48,14 @@ class ComplianceAlertScreen extends StatelessWidget {
     // Start playing reminder tune
     ReminderSoundService.instance.playAlertTune();
 
-    Future<void> handleStartCheck(BuildContext ctx) async {
+    void handleStartCheck(BuildContext ctx) {
       ReminderSoundService.instance.stop();
-      if (!ctx.mounted) return;
-      Navigator.of(ctx).pop();
-      if (!context.mounted) return;
-      final completed = await Navigator.of(context).pushNamed(
-        AppRoutes.checklist,
-        arguments: check,
-      );
-
-      // If user came back without completing / uploading, re-open alert dialog
-      if (completed != true && context.mounted) {
-        ComplianceAlertScreen.show(
-          context,
-          check: check,
-          storeId: storeId,
-        );
-      }
+      Navigator.of(ctx).pop('start');
     }
 
     Future<void> handleRemindLater(BuildContext ctx) async {
       ReminderSoundService.instance.stop();
-      Navigator.of(ctx).pop();
+      Navigator.of(ctx).pop('snooze');
       if (check != null) {
         await ScheduledCheckInService.instance.snoozeCheckFor15Minutes(
           checkId: check.id,
@@ -99,10 +84,10 @@ class ComplianceAlertScreen extends StatelessWidget {
       }
     }
 
-    Future<void> dialogFuture;
+    Future<String?> dialogFuture;
 
     if (isTablet) {
-      dialogFuture = showDialog(
+      dialogFuture = showDialog<String>(
         context: context,
         barrierDismissible: false,
         barrierColor: Colors.black.withValues(alpha: 0.65),
@@ -126,7 +111,7 @@ class ComplianceAlertScreen extends StatelessWidget {
       );
     } else {
       // Mobile: Fullscreen alert dialog (non-cancelable until check-in started)
-      dialogFuture = showDialog(
+      dialogFuture = showDialog<String>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => PopScope(
@@ -146,9 +131,9 @@ class ComplianceAlertScreen extends StatelessWidget {
       );
     }
 
-    return dialogFuture.whenComplete(() {
-      ReminderSoundService.instance.stop();
-    });
+    final result = await dialogFuture;
+    ReminderSoundService.instance.stop();
+    return result;
   }
 
   @override

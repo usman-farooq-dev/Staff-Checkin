@@ -636,7 +636,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'SWITCH STAFF',
+                                  'Logout',
                                   style: AppStyles.buttonText.copyWith(
                                     color: AppColors.textPrimary,
                                     fontSize: 13.5,

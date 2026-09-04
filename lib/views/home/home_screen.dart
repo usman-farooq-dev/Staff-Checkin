@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _clockTimer;
   // Track automatic popup alert state
   bool _isAlertShowing = false;
+  bool _isCheckInProgress = false;
   String _lastTriggeredAlertKey = '';
   List<ScheduledCheckInModel> _lastPendingChecks = [];
   String _lastStoreId = '';
@@ -92,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Automatically prompt fullscreen compliance alert when scheduled time arrives (ONLY if staff is logged in and active)
+  /// Automatically prompt fullscreen compliance alert when scheduled time arrives (ONLY on Home screen and when not actively checking in)
   void _checkAndTriggerScheduledAlert(
     List<ScheduledCheckInModel> pendingChecks,
     String storeId,
@@ -103,7 +104,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    if (_isAlertShowing || pendingChecks.isEmpty) return;
+    // 2. Alert should ONLY trigger if on Home screen and NOT currently in a check flow
+    if (!mounted || _isCheckInProgress || _isAlertShowing || pendingChecks.isEmpty) {
+      return;
+    }
+
+    final isHomeVisible = ModalRoute.of(context)?.isCurrent ?? false;
+    if (!isHomeVisible) return;
 
     for (final check in pendingChecks) {
       if (check.shouldTriggerAlertForStore(storeId)) {
@@ -115,20 +122,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           if (!mounted) return;
-          // Re-verify login before popping up alert
+          // Re-verify login and visibility before popping up alert
           if (!StaffAuthService.instance.isLoggedIn) {
             _isAlertShowing = false;
             return;
           }
+          final currentRoute = ModalRoute.of(context)?.isCurrent ?? false;
+          if (!currentRoute || _isCheckInProgress) {
+            _isAlertShowing = false;
+            return;
+          }
 
-          await ComplianceAlertScreen.show(
+          final action = await ComplianceAlertScreen.show(
             context,
             check: check,
             storeId: storeId,
           );
-          if (mounted) {
-            _isAlertShowing = false;
-            _lastTriggeredAlertKey = '';
+
+          if (!mounted) return;
+          _isAlertShowing = false;
+
+          if (action == 'start') {
+            _isCheckInProgress = true;
+            final completed = await Navigator.of(context).pushNamed(
+              AppRoutes.checklist,
+              arguments: check,
+            );
+            if (mounted) {
+              _isCheckInProgress = false;
+              // If user came back without completing / submitting, re-trigger alert dialog on Home
+              if (completed != true) {
+                _lastTriggeredAlertKey = '';
+                _checkAndTriggerScheduledAlert(_lastPendingChecks, storeId);
+              }
+            }
           }
         });
         break;
@@ -344,11 +371,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             child: OverdueAlertBanner(
                               overdueCount: overdueOrMissed.length,
                               title: topOverdue.title,
-                              onStartNow: () {
-                                Navigator.of(context).pushNamed(
+                              onStartNow: () async {
+                                _isCheckInProgress = true;
+                                await Navigator.of(context).pushNamed(
                                   AppRoutes.checklist,
                                   arguments: topOverdue,
                                 );
+                                if (mounted) {
+                                  _isCheckInProgress = false;
+                                }
                               },
                             ),
                           );
@@ -374,11 +405,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               time: nextCheck.formattedTime,
                               title: nextCheck.title,
                               subtitle: nextCheck.heroSubtitle,
-                              onStartCheck: () {
-                                Navigator.of(context).pushNamed(
+                              onStartCheck: () async {
+                                _isCheckInProgress = true;
+                                await Navigator.of(context).pushNamed(
                                   AppRoutes.checklist,
                                   arguments: nextCheck,
                                 );
+                                if (mounted) {
+                                  _isCheckInProgress = false;
+                                }
                               },
                             ),
                           );

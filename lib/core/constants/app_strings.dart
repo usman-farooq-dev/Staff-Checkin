@@ -51,5 +51,5 @@ class AppStrings {
   static const String kioskMode = 'Kiosk mode';
   static const String uploadDestination = 'Upload destination';
   static const String appVersion = 'App version';
-  static const String switchStaff = 'SWITCH STAFF';
+  static const String switchStaff = 'Logout';
 }
